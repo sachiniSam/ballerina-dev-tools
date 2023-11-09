@@ -96,11 +96,14 @@ if (moduleVersion.indexOf('-') != -1) {
 }
 def artifactLibParent = file("$project.rootDir/build/architecture-model-generator/")
 def artifactGraphqlLibParent = file("$project.rootDir/build/graphql-model-generator/")
+def artifactWorkerLibParent = file("$project.rootDir/build/worker-model-generator/")
 def targetArchModelGeneratorCore = file("$project.rootDir/architecture-model-generator/modules/architecture-model-generator-core/build/libs/architecture-model-generator-core-${project.version}.jar")
 def targetArchModelGeneratorPlugin = file("$project.rootDir/architecture-model-generator/modules/architecture-model-generator-plugin/build/libs/architecture-model-generator-plugin-${project.version}.jar")
 def targetArchModelGeneratorLSExt = file("$project.rootDir/architecture-model-generator/modules/architecture-model-generator-ls-extension/build/libs/architecture-model-generator-ls-extension-${project.version}.jar")
 def targetGraphqlModelGeneratorCore = file("$project.rootDir/graphql-model-generator/modules/graphql-model-generator-core/build/libs/graphql-model-generator-core-${project.version}.jar")
 def targetGraphqlModelGeneratorLSExt = file("$project.rootDir/graphql-model-generator/modules/graphql-model-generator-ls-extension/build/libs/graphql-model-generator-ls-extension-${project.version}.jar")
+def targetWorkerModelGeneratorCore = file("$project.rootDir/worker-model-generator/modules/model-generator-core/build/libs/model-generator-core-${project.version}.jar")
+def targetWorkerModelGeneratorLSExt = file("$project.rootDir/worker-model-generator/modules/model-generator-ls-extension/build/libs/model-generator-ls-extension-${project.version}.jar")
 
 task copyArtifactZip {
     dependsOn(":architecture-model-generator:architecture-model-generator-core:build")
@@ -108,6 +111,8 @@ task copyArtifactZip {
     dependsOn(":architecture-model-generator:architecture-model-generator-ls-extension:build")
     dependsOn(":graphql-model-generator:graphql-model-generator-core:build")
     dependsOn(":graphql-model-generator:graphql-model-generator-ls-extension:build")
+    dependsOn(":worker-model-generator:model-generator-core:build")
+    dependsOn(":worker-model-generator:model-generator-ls-extension:build")
     inputs.dir file(project.rootDir)
     doLast {
         copy {
@@ -130,14 +135,22 @@ task copyArtifactZip {
             from targetGraphqlModelGeneratorLSExt
             into file("$artifactGraphqlLibParent/ls-libs")
         }
+        copy {
+            from targetWorkerModelGeneratorCore
+            into file("$artifactWorkerLibParent/libs")
+        }
+        copy {
+            from targetWorkerModelGeneratorLSExt
+            into file("$artifactWorkerLibParent/ls-libs")
+        }
     }
     outputs.dir artifactLibParent
 }
 
 task createArtifactZip(type: Zip) {
     dependsOn copyArtifactZip
-    dependsOn(":docerina-ui:createDocerinaUiZip")
-    dependsOn(":testerina-report-tools:createTesterinaReportToolsZip")
+//    dependsOn(":docerina-ui:createDocerinaUiZip")
+//    dependsOn(":testerina-report-tools:createTesterinaReportToolsZip")
     from "build"
     archiveName 'ballerina-dev-tools-' + project.version + '.zip'
     destinationDir(file("dist"))
