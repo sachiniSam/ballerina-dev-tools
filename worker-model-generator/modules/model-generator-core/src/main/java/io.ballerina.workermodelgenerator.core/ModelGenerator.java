@@ -12,7 +12,7 @@ import java.nio.file.Path;
 
 public class ModelGenerator {
 
-    public WorkerModel getWorkerModel(Project project, LineRange position) throws
+    public WorkerModel getWorkerModel(Project project, LineRange position, SemanticModel semanticModel) throws
             Exception {
         Package packageName = project.currentPackage();
         DocumentId docId;
@@ -35,7 +35,7 @@ public class ModelGenerator {
             throw new Exception();
         }
 
-        WorkerAnalyzer workerAnalyzer = new WorkerAnalyzer(project, node);
+        WorkerAnalyzer workerAnalyzer = new WorkerAnalyzer(project, node, semanticModel);
         WorkerModel workerModel =  workerAnalyzer.serializeDependencyGraph();
 
         return workerModel;

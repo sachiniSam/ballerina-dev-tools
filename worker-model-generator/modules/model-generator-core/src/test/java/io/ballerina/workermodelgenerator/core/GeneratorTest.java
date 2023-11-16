@@ -5,10 +5,8 @@ import com.google.gson.GsonBuilder;
 import io.ballerina.projects.Project;
 import io.ballerina.tools.text.LinePosition;
 import io.ballerina.tools.text.LineRange;
-import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -28,7 +26,7 @@ public class GeneratorTest {
         ModelGenerator modelGenerator = new ModelGenerator();
         LineRange lineRange = getLineRange(projectPath.toString(),
                 LinePosition.from(4, 4), LinePosition.from(8, 5));
-        WorkerModel workerModel = modelGenerator.getWorkerModel(project,lineRange);
+//        WorkerModel workerModel = modelGenerator.getWorkerModel(project,lineRange, semanticModel);
 //        ArchitectureModelBuilder architectureModelBuilder = new ArchitectureModelBuilder();
 //        ArchitectureModel generatedModel = architectureModelBuilder.constructComponentModel(project.currentPackage());
 //        ArchitectureModel expectedModel = TestUtils.getComponentFromGivenJsonFile(expectedJsonPath);

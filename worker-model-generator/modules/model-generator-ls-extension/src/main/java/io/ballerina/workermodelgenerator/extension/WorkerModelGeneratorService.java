@@ -52,8 +52,8 @@ public class WorkerModelGeneratorService implements ExtendedLanguageServerServic
                 SemanticModel semanticModel = this.workspaceManager.semanticModel(filePath).get();
 
                 ModelGenerator modelGenerator = new ModelGenerator();
-                WorkerModel generatedModel = modelGenerator.getWorkerModel(project, request.getLineRange());
-                Gson gson = new GsonBuilder().serializeNulls().create();
+                WorkerModel generatedModel = modelGenerator.getWorkerModel(project, request.getLineRange(), semanticModel);
+                Gson gson = new GsonBuilder().create();
                 JsonElement modelJson = gson.toJsonTree(generatedModel);
                 response.setWorkerDesignModel(modelJson);
                 // System.out.println(response.getWorkerDesignModel());

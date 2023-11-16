@@ -1,25 +1,29 @@
 package io.ballerina.workermodelgenerator.core;
 
+import io.ballerina.compiler.api.SemanticModel;
+import io.ballerina.compiler.api.TypeBuilder;
+import io.ballerina.compiler.api.symbols.TupleTypeSymbol;
+import io.ballerina.compiler.api.symbols.TypeDescKind;
+import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.syntax.tree.*;
 import io.ballerina.projects.DependencyGraph;
 import io.ballerina.projects.Project;
-import io.ballerina.projects.plugins.SyntaxNodeAnalysisContext;
-import io.ballerina.projects.util.ProjectPaths;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
-import java.util.List;
-import java.util.StringJoiner;
+import java.util.*;
 
 public class WorkerAnalyzer {
 
     private Project project;
     private NonTerminalNode functionDefNode;
+    private SemanticModel semanticModel;
+    // TODO: Remove this when we remove the graph builder logic
+    private Map<String, LinkMetaData> linkMetaData;
 
-    public WorkerAnalyzer(Project project, NonTerminalNode functionDefNode) {
+    public WorkerAnalyzer(Project project, NonTerminalNode functionDefNode, SemanticModel semanticModel) {
         this.project = project;
         this.functionDefNode = functionDefNode;
+        this.semanticModel = semanticModel;
+        this.linkMetaData = new HashMap<>();
     }
 
     public static final String DATAFLOW_GRAPH_DOT_FILENAME = "dataflow_graph.dot";
@@ -82,6 +86,15 @@ public class WorkerAnalyzer {
             for (String directDependency : dependencyGraph.getDirectDependencies(node)) {
                 // dotGraphSerializer.addEdge(node, directDependency);
                 Link link = new Link(directDependency);
+                if (linkMetaData.containsKey(directDependency)) {
+                    LinkMetaData linkMetaDataObj = linkMetaData.get(directDependency);
+                    if (linkMetaDataObj.getFromWorker().equals(node)) {
+                        link.setVarName(linkMetaDataObj.getVarName());
+                        link.setType(linkMetaDataObj.getVarType());
+                    }
+//                    link.setVarName(linkMetaDataObj.getVarName());
+//                    link.setType(linkMetaDataObj.getVarType());
+                }
                 workerNode.addLink(link);
             }
 
@@ -109,18 +122,92 @@ public class WorkerAnalyzer {
                                            DependencyGraph.DependencyGraphBuilder<String> graphBuilder) {
 
         String toWorker;
+        String varName = "";
+        String typeName = "";
         ExpressionNode expression = ((ExpressionStatementNode) statement).expression();
         if (expression.kind() == SyntaxKind.ASYNC_SEND_ACTION) {
             AsyncSendActionNode sendActionNode = (AsyncSendActionNode) expression;
+            // Get the details about varName and Type
+            ExpressionNode sendExpression = sendActionNode.expression();
+            if(sendActionNode.expression().kind() == SyntaxKind.SIMPLE_NAME_REFERENCE) {
+                SimpleNameReferenceNode simpleNameReferenceNode = (SimpleNameReferenceNode) sendActionNode.expression();
+                varName = simpleNameReferenceNode.name().text().trim();
+            } else if (sendExpression.kind() == SyntaxKind.NUMERIC_LITERAL) {
+                BasicLiteralNode literalNode = (BasicLiteralNode) sendExpression;
+                varName = literalNode.literalToken().text().trim();
+            } else {
+                varName = sendExpression.toString().trim();
+            }
+            
+            Optional<TypeSymbol> expressionType = semanticModel.typeOf(sendExpression);
+            if (expressionType.isPresent()) {
+                TypeSymbol typeSymbol = expressionType.get();
+                if (typeSymbol.typeKind() == TypeDescKind.TUPLE) {
+                    TupleTypeSymbol tupleTypeSymbol = (TupleTypeSymbol) typeSymbol;
+                    List<TypeSymbol> memberTypes = tupleTypeSymbol.memberTypeDescriptors();
+                    StringBuilder typeNameBuilder = new StringBuilder("[");
+                    for (TypeSymbol memberType : memberTypes) {
+                        if (memberType.getName().isPresent()) {
+                            typeNameBuilder.append(memberType.getName().get()).append(",");
+                        }
+                    }
+                    if (typeNameBuilder.length() > 1) {
+                        typeNameBuilder.setLength(typeNameBuilder.length() - 1); // remove last comma
+                    }
+                    typeNameBuilder.append("]");
+                    typeName = typeNameBuilder.toString();
+                } else if (typeSymbol.getName().isPresent()) {
+                    typeName = typeSymbol.getName().get();
+                }
+
+            }
             toWorker = sendActionNode.peerWorker().name().text();
         } else if (expression.kind() == SyntaxKind.SYNC_SEND_ACTION) {
             SyncSendActionNode sendActionNode = (SyncSendActionNode) expression;
+
+            // Get the details about type and name
+            ExpressionNode sendExpression = sendActionNode.expression();
+            if(sendActionNode.expression().kind() == SyntaxKind.SIMPLE_NAME_REFERENCE) {
+                SimpleNameReferenceNode simpleNameReferenceNode = (SimpleNameReferenceNode) sendActionNode.expression();
+                varName = simpleNameReferenceNode.name().text().trim();
+            } else if (sendExpression.kind() == SyntaxKind.NUMERIC_LITERAL) {
+                BasicLiteralNode literalNode = (BasicLiteralNode) sendExpression;
+                varName = literalNode.literalToken().text().trim();
+            } else {
+                varName = sendExpression.toString().trim();
+            }
+
+            Optional<TypeSymbol> expressionType = semanticModel.typeOf(sendExpression);
+            if (expressionType.isPresent()) {
+                TypeSymbol typeSymbol = expressionType.get();
+                if (typeSymbol.typeKind() == TypeDescKind.TUPLE) {
+                    TupleTypeSymbol tupleTypeSymbol = (TupleTypeSymbol) typeSymbol;
+                    List<TypeSymbol> memberTypes = tupleTypeSymbol.memberTypeDescriptors();
+                    StringBuilder typeNameBuilder = new StringBuilder("[");
+                    for (TypeSymbol memberType : memberTypes) {
+                        if (memberType.getName().isPresent()) {
+                            typeNameBuilder.append(memberType.getName().get()).append(",");
+                        }
+                    }
+                    if (typeNameBuilder.length() > 1) {
+                        typeNameBuilder.setLength(typeNameBuilder.length() - 1); // remove last comma
+                    }
+                    typeNameBuilder.append("]");
+                    typeName = typeNameBuilder.toString();
+                } else if (typeSymbol.getName().isPresent()) {
+                    typeName = typeSymbol.getName().get();
+                }
+
+            }
+
+
+
             toWorker = sendActionNode.peerWorker().name().text();
         } else {
             return;
         }
 
-        addSendDependency(curWorkerName, toWorker, graphBuilder);
+        addSendDependency(curWorkerName, toWorker, graphBuilder, varName, typeName);
     }
 
     private void processVarDeclarationNode(StatementNode statement,
@@ -244,12 +331,14 @@ public class WorkerAnalyzer {
 
     private void addSendDependency(String fromWorker,
                                    String toWorker,
-                                   DependencyGraph.DependencyGraphBuilder<String> graphBuilder) {
+                                   DependencyGraph.DependencyGraphBuilder<String> graphBuilder, String varName, String typeName) {
         String newToWorker = toWorker;
         if (FUNC_NODE.equals(toWorker)) {
             newToWorker = FUNC_END_NODE;
         }
         graphBuilder.addDependency(fromWorker, newToWorker);
+        linkMetaData.put(newToWorker, new LinkMetaData(varName, typeName, fromWorker));
+
     }
 
     private void addReceiveDependency(String fromWorker,

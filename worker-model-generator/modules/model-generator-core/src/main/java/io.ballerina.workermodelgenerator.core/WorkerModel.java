@@ -13,4 +13,13 @@ public class WorkerModel {
     public void addNode(WorkerNode node) {
         nodes.add(node);
     }
+
+    public WorkerNode getNode(String name) {
+        for (WorkerNode node : nodes) {
+            if (node.getName().equals(name)) {
+                return node;
+            }
+        }
+        return null;
+    }
 }

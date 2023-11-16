@@ -13,6 +13,10 @@ public class WorkerNode {
         this.links = new ArrayList<>();
     }
 
+    public String getName() {
+        return name;
+    }
+
     public void addLink(Link link) {
         links.add(link);
     }
